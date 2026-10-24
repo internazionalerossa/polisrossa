@@ -32,7 +32,7 @@ test('HTTP node editorial lifecycle updates the readable thematic publication an
    name:'Astronomia',topic:'Ricerca e osservazione astronomica',
    description:'Una biblioteca di fonti e conoscenza astronomica verificabile.',
    blocks:[],sources:[]};
-  const first=await call(request({action:'propose',draft}),'alice');
+  const first=await call(request({action:'propose',draft,expectedBaseDigest:null}),'alice');
   assert.equal(first.status,201);
   assert.equal((await first.json()).status,'published');
   const seed=createPublicSpaceSeed({...draft,operation:'create-node'});
@@ -45,7 +45,7 @@ test('HTTP node editorial lifecycle updates the readable thematic publication an
   const collective=await(await call(new Request(url),'alice')).json();
   assert.equal(collective.mode,'collective');
   assert.equal(collective.members,2);
-  const proposed=await(await call(request({action:'propose',draft:{...draft,description:'A second edition with reviewed bibliography and timeline.'}}),'alice')).json();
+  const proposed=await(await call(request({action:'propose',draft:{...draft,description:'A second edition with reviewed bibliography and timeline.'},expectedBaseDigest:(await call(new Request(url),'alice').then(r=>r.json()) as {head:{digest:string}}).head.digest}),'alice')).json();
   assert.equal(proposed.status,'pending');
   assert.equal((await call(request({action:'vote',proposalId:proposed.id,choice:'yes',role:'pr3'}),'bob')).status,400);
   const firstVote=await(await call(request({action:'vote',proposalId:proposed.id,choice:'yes'}),'alice')).json();
@@ -54,7 +54,7 @@ test('HTTP node editorial lifecycle updates the readable thematic publication an
   assert.equal(lastVote.status,'published');
   const final=validatePublicSpaceSeed(await (await editorialPublicSpaceSeedResponse(pool,seed)).json());
   assert.match(final.description,/second edition/);
-  const mismatch=await call(request({action:'propose',draft:{...draft,spaceId:'geologia'}}),'alice');
+  const mismatch=await call(request({action:'propose',draft:{...draft,spaceId:'geologia'},expectedBaseDigest:null}),'alice');
   assert.equal(mismatch.status,403);
   assert.equal((await call(new Request(url.replace('astronomia','../secret')),null)).status,400);
  }finally{await pg.close();}
