@@ -62,9 +62,9 @@ export default function NodeEditorialPanel({seed}:{seed:PublicSpaceSeed}){
   }catch(e){setError(e instanceof Error?e.message:'Operazione fallita');throw e;}
   finally{setBusy(false);}
  }
- async function propose(draft:NodeBlueprintDraft):Promise<string>{
+ async function propose(draft:NodeBlueprintDraft,expectedBaseDigest:string|null):Promise<string>{
   if(!board?.initialized)throw Error('Lo stato editoriale non è stato inizializzato.');
-  const result=await action({action:'propose',draft,expectedBaseDigest:board.head?.digest??null});
+  const result=await action({action:'propose',draft,expectedBaseDigest});
   return result.status==='published'?'Revisione pubblicata: era presente un solo PR2 attivo.':
    'Proposta registrata per il voto dei PR2 di questo nodo. I contenuti pubblici non sono cambiati.';
  }
@@ -85,7 +85,7 @@ export default function NodeEditorialPanel({seed}:{seed:PublicSpaceSeed}){
       Conferma l'appartenenza PR2 a questo nodo
      </button>}
    </div>
-   {board.initialized?<NodeStudio spaceId={seed.spaceId} seed={seed} onPropose={propose}/>:null}
+   {board.initialized?<NodeStudio spaceId={seed.spaceId} seed={seed} baseDigest={board.head?.digest??null} onPropose={propose}/>:null}
    <section aria-labelledby="editorial-proposals-title">
     <h3 id="editorial-proposals-title">Revisioni sottoposte al voto</h3>
     {board.proposals.length===0?<p>Nessuna proposta editoriale aperta.</p>:null}
