@@ -138,16 +138,19 @@ test("quorum, abstention and ties are derived instead of asserted by a host", as
   assert.equal(abstained.outcome, "rejected");
 });
 
-test("PR1, node-scoped PR2 and elected PR3 have distinct powers and hosting never adds weight", () => {
+test("PR1 personal rights, node PR2 and derived Agora PR3 never gain votes from hosting", () => {
   assert.deepEqual(AGORA_PARTICIPATION_ROLES.PR1, {scope: "personal", nodeBallotWeight: 0, federationElectionWeight: 0, delegateBallotWeight: 0, elected: false, hostingWeight: 0});
   assert.equal(AGORA_PARTICIPATION_ROLES.PR2.nodeBallotWeight, 1);
   assert.equal(AGORA_PARTICIPATION_ROLES.PR2.federationElectionWeight, 1);
   assert.equal(AGORA_PARTICIPATION_ROLES.PR2.federationDeduplication, "one-person-across-nodes");
   assert.equal(AGORA_PARTICIPATION_ROLES.PR2.hostingWeight, 0);
-  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.requires, "active-pr2");
-  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.delegateBallotWeight, 1);
+  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.requires, "active-agora-pr2");
+  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.sourceNodeId,"agora");
+  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.nodeBallotWeight,1);
+  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.elected,false);
+  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.delegateBallotWeight, 0);
   assert.equal(AGORA_PARTICIPATION_ROLES.PR3.hostingWeight, 0);
-  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.maximumMandateMs, AGORA_PR3_MAX_MANDATE_MS);
+  assert.equal(AGORA_PARTICIPATION_ROLES.PR3.scope, "platform-via-agora");
 });
 
 test("an active PR2 membership from any node is eligible for PR3 candidacy, but pending or expired membership is not", () => {
