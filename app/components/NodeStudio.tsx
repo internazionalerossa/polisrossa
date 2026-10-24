@@ -7,9 +7,10 @@ import {NODE_PRIMARY_TABS} from '../lib/node-primary-navigation';
 import {editStudioBlock,appendAtlasEntry} from '../lib/node-studio-editor';
 import type {PublicSpaceSeed} from '../platform/public-space-seed';
 
-type Props={spaceId:string;seed?:PublicSpaceSeed;onPropose?:(draft:NodeBlueprintDraft)=>Promise<string>;onCreateNode?:(draft:NodeBlueprintDraft)=>Promise<string>};
+type Props={spaceId:string;seed?:PublicSpaceSeed;onPropose?:(draft:NodeBlueprintDraft,baseDigest:string|null)=>Promise<string>;baseDigest?:string|null;onCreateNode?:(draft:NodeBlueprintDraft)=>Promise<string>};
 const key=(spaceId:string)=>'agoranode.node-studio.draft.v1:'+spaceId;
-export default function NodeStudio({spaceId,seed,onPropose,onCreateNode}:Props){
+const baseKey=(spaceId:string)=>'agoranode.node-studio.edited-base.v1:'+spaceId;
+export default function NodeStudio({spaceId,seed,onPropose,onCreateNode,baseDigest}:Props){
  const [draft,setDraft]=useState<NodeBlueprintDraft>(()=>newNodeDraft(spaceId==='agora'?'create-node':'edit-node',spaceId==='agora'?'nuovo-nodo':spaceId));
  const [saved,setSaved]=useState<NodeBlueprintDraft[]>([]);
  const [account,setAccount]=useState(false);
@@ -17,12 +18,19 @@ export default function NodeStudio({spaceId,seed,onPropose,onCreateNode}:Props){
  const [preview,setPreview]=useState(false);
  const [previewTab,setPreviewTab]=useState<'notizie'|'teoria'|'partecipa'>('notizie');
  const [busy,setBusy]=useState(false);
+ const [editedBase,setEditedBase]=useState<string|null|undefined>(baseDigest);
  useEffect(()=>{
    let active=true;
    try{
      const raw=localStorage.getItem(key(spaceId));
-     if(raw)setDraft(nodeStudioDraft(JSON.parse(raw)));
-     else if(seed)setDraft({...newNodeDraft('edit-node',spaceId),name:seed.name,topic:seed.topic,description:seed.description,accent:seed.accent,sources:seed.sources,blocks:seed.blocks});
+     if(raw){
+       setDraft(nodeStudioDraft(JSON.parse(raw)));
+       const stored=localStorage.getItem(baseKey(spaceId));
+       setEditedBase(stored==='null'?null:stored&&/^sha256:[0-9a-f]{64}$/.test(stored)?stored:undefined);
+     }else if(seed){
+       setDraft({...newNodeDraft('edit-node',spaceId),name:seed.name,topic:seed.topic,description:seed.description,accent:seed.accent,sources:seed.sources,blocks:seed.blocks});
+       setEditedBase(baseDigest);
+     }
    }catch{}
    const controller=new AbortController();
    void fetch('/api/node-studio/drafts',{signal:controller.signal,cache:'no-store',credentials:'same-origin'})
@@ -36,7 +44,7 @@ export default function NodeStudio({spaceId,seed,onPropose,onCreateNode}:Props){
        setSaved(result.drafts.map(item=>nodeStudioDraft(item)));
      }).catch(()=>{});
    return()=>{active=false;controller.abort();};
- },[spaceId,seed]);
+ },[spaceId,seed,baseDigest]);
  const update=(patch:Partial<NodeBlueprintDraft>)=>setDraft(old=>({...old,...patch,updatedAt:Date.now()}));
  const updateBlock=(id:string,patch:{title:string}|{body:string})=>
   setDraft(previous=>editStudioBlock(previous,id,patch));
@@ -48,6 +56,7 @@ export default function NodeStudio({spaceId,seed,onPropose,onCreateNode}:Props){
  };
  const reset=(operation:'create-node'|'edit-node')=>{
    const next=newNodeDraft(operation,operation==='edit-node'?spaceId:'nuovo-nodo');
+   if(operation==='edit-node')setEditedBase(baseDigest);
    setDraft(operation==='edit-node'?{...next,name:seed?.name??(spaceId==='agora'?'Agorà':spaceId==='polisrossa'?'PolisRossa':'Nodo tematico'),topic:seed?.topic??next.topic,description:seed?.description??next.description,accent:seed?.accent??next.accent,sources:seed?.sources??[],blocks:seed?.blocks??[]}:{...next,name:'',topic:'',description:'',sources:[],blocks:[]});
    setStatus('Nuova bozza avviata; non è stata pubblicata.');
  };
@@ -67,6 +76,8 @@ export default function NodeStudio({spaceId,seed,onPropose,onCreateNode}:Props){
    setBusy(true);
    try{
      localStorage.setItem(key(spaceId),JSON.stringify(checked));
+     if(checked.operation==='edit-node'&&editedBase!==undefined)
+       localStorage.setItem(baseKey(spaceId),editedBase??'null');
      if(account){
        const response=await fetch('/api/node-studio/drafts',{
          method:'PUT',credentials:'same-origin',headers:{'content-type':'application/json'},
@@ -88,7 +99,8 @@ export default function NodeStudio({spaceId,seed,onPropose,onCreateNode}:Props){
      if(prepared.operation!=='edit-node'||prepared.spaceId!==spaceId)throw Error('Seleziona Modifica il nodo per proporre una revisione di questa comunità.');
    }catch(e){setStatus(e instanceof Error?e.message:'Bozza non valida');return;}
    setBusy(true);
-   try{setStatus(await onPropose(prepared));}
+   if(editedBase===undefined){setStatus('La base di questa bozza non è verificabile: scegli Modifica il nodo e riparti dalla revisione pubblicata prima di proporre.');return;}
+   try{setStatus(await onPropose(prepared,editedBase));}
    catch(e){setStatus(e instanceof Error?e.message:'Proposta non registrata');}
    finally{setBusy(false);}
  };
