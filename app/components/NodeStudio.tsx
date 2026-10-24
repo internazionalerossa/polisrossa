@@ -78,6 +78,7 @@ export default function NodeStudio({spaceId,seed,onPropose,onCreateNode,baseDige
      localStorage.setItem(key(spaceId),JSON.stringify(checked));
      if(checked.operation==='edit-node'&&editedBase!==undefined)
        localStorage.setItem(baseKey(spaceId),editedBase??'null');
+     else localStorage.removeItem(baseKey(spaceId));
      if(account){
        const response=await fetch('/api/node-studio/drafts',{
          method:'PUT',credentials:'same-origin',headers:{'content-type':'application/json'},
@@ -141,7 +142,7 @@ export default function NodeStudio({spaceId,seed,onPropose,onCreateNode,baseDige
      <button type="button" aria-pressed={draft.operation==='edit-node'} onClick={()=>reset('edit-node')}>Modifica il nodo</button>
    </div>
    {account&&saved.length>0?<label>Bozze nel tuo account
-     <select value="" onChange={e=>{const found=saved.find(item=>item.draftId===e.target.value);if(found){setDraft(found);setStatus('Bozza caricata.');}}}>
+     <select value="" onChange={e=>{const found=saved.find(item=>item.draftId===e.target.value);if(found){setDraft(found);setEditedBase(undefined);setStatus('Bozza caricata. Non contiene una versione editoriale attestata: per proporre modifiche occorre ripartire dalla revisione pubblicata.');}}}>
        <option value="">Scegli una bozza...</option>
        {saved.map(item=><option key={item.draftId} value={item.draftId}>{item.name} · {item.spaceId}</option>)}
      </select>
