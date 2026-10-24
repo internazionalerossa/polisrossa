@@ -69,7 +69,10 @@ export async function handleNodeEditorial(
    return reply(await joinEditorialPr2(pool,spaceId,userId,verify),201);
   }
   if(data.action==='propose'){
-   if(Object.keys(data).sort().join(',')!=='action,draft')return reply({error:'Invalid proposal'},400);
+   if(Object.keys(data).sort().join(',')!=='action,draft,expectedBaseDigest'||
+     !(data.expectedBaseDigest===null||
+       (typeof data.expectedBaseDigest==='string'&&/^sha256:[0-9a-f]{64}$/.test(data.expectedBaseDigest))))
+    return reply({error:'A valid published base revision is required'},400);
    const draft=nodeStudioDraft(data.draft);
    if(draft.spaceId!==spaceId)return reply({error:'Draft belongs to another node'},403);
    const publicContent={
@@ -77,7 +80,7 @@ export async function handleNodeEditorial(
     description:draft.description,accent:draft.accent,
     sources:draft.sources,blocks:draft.blocks,
    };
-   return reply(await proposeEditorialRevision(pool,spaceId,userId,publicContent,verify),201);
+   return reply(await proposeEditorialRevision(pool,spaceId,userId,publicContent,verify,data.expectedBaseDigest as string|null),201);
   }
   if(data.action==='vote'){
    if(Object.keys(data).sort().join(',')!=='action,choice,proposalId'||
