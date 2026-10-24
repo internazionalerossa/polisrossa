@@ -27,8 +27,8 @@ test('the issue service is scoped, authenticated, and never grants PR2 by self d
   const digest='sha256:'+'a'.repeat(64);
   await pg.query('INSERT INTO federation_nodes(node_id,display_name,admitted_by_decision_digest,admitted_at) VALUES($1,$2,$3,$4)',
     ['agora','Agorà',digest,1]);
-  await pg.query('INSERT INTO federation_node_keys(node_id,key_id,public_key_spki_base64,valid_from,admitted_by_decision_digest) VALUES($1,$2,$3,$4,$5)',
-    ['agora','sha256:'+'b'.repeat(64),'A'.repeat(64),1,digest]);
+  await pg.query('INSERT INTO federation_node_keys(node_id,key_id,public_key_spki_base64,valid_from,admitted_by_decision_digest,valid_until) VALUES($1,$2,$3,$4,$5,$6)',
+    ['agora','sha256:'+'b'.repeat(64),'A'.repeat(64),1,digest,1800000000001]);
   await pg.query('INSERT INTO federation_pr2_electors(owner_key,actor_id,source_node_id,source_membership_id,voter_key_id,voter_public_key_spki_base64,public_alias,created_at) VALUES($1,$2,$3,$4,$5,$6,$7,$8)',
     ['alice','actor-alice','agora','sha256:'+'c'.repeat(64),'sha256:'+'d'.repeat(64),'A'.repeat(64),'Alice',1]);
   const now=1_800_000_000_000;
@@ -77,8 +77,6 @@ test('the issue service is scoped, authenticated, and never grants PR2 by self d
   assert.equal((await handleScopedIssues(new Request(url+'&issueId=bad'),db,null)).status,400);
   // Revoking the admitted issuer key must immediately revoke issue rights,
   // even before the member's own attestation expires.
-  await pg.query('UPDATE federation_node_keys SET valid_until=$1 WHERE node_id=$2',
-   [now+1,'agora']);
   assert.equal((await handleScopedIssues(post(details),db,'alice',now+2)).status,403);
   const revokedBoard=await (await handleScopedIssues(new Request(url),db,'alice',now+2)).json();
   assert.equal(revokedBoard.canParticipate,false);
