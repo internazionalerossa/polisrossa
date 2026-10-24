@@ -12,13 +12,18 @@ export const AGORA_GOVERNANCE_BALLOT_FORMAT = "org.agoranode.governance-ballot.v
 export const AGORA_GOVERNANCE_CERTIFICATE_FORMAT = "org.agoranode.governance-quorum-certificate.v1" as const;
 export const AGORA_GOVERNANCE_PROTOCOL_VERSION = 1 as const;
 export const AGORA_PR2_MEMBERSHIP_FORMAT = "org.agoranode.pr2-membership.v1" as const;
+/** Legacy PR3 mandate format kept solely for decoding historical records. Not a current role grant. */
 export const AGORA_PR3_MANDATE_RECORD_FORMAT = "org.agoranode.pr3-mandate-record.v1" as const;
 export const AGORA_PR3_MAX_MANDATE_MS = 365 * 24 * 60 * 60 * 1000;
 
 export const AGORA_PARTICIPATION_ROLES = Object.freeze({
   PR1: Object.freeze({scope: "personal", nodeBallotWeight: 0, federationElectionWeight: 0, delegateBallotWeight: 0, elected: false, hostingWeight: 0}),
   PR2: Object.freeze({scope: "instance", nodeBallotWeight: 1, federationElectionWeight: 1, federationDeduplication: "one-person-across-nodes", delegateBallotWeight: 0, elected: false, hostingWeight: 0}),
-  PR3: Object.freeze({scope: "federation", nodeBallotWeight: 0, federationElectionWeight: 0, delegateBallotWeight: 1, elected: true, hostingWeight: 0, requires: "active-pr2", maximumMandateMs: AGORA_PR3_MAX_MANDATE_MS}),
+  // PR3 is not a separately elected office: it is an active PR2 of Agorà
+  // exercising platform competence, without additional hosting or ballot weight.
+  PR3: Object.freeze({scope: "platform-via-agora", sourceNodeId: "agora", nodeBallotWeight: 1,
+    federationElectionWeight: 0, delegateBallotWeight: 0, elected: false, hostingWeight: 0,
+    requires: "active-agora-pr2"}),
 } as const);
 
 export const GOVERNANCE_DECISION_CLASSES = [
