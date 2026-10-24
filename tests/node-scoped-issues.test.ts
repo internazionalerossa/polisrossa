@@ -75,5 +75,13 @@ test('the issue service is scoped, authenticated, and never grants PR2 by self d
   assert.equal(comments.advisoryVotes.length,0);
   assert.ok(!JSON.stringify(comments).includes('bob'));
   assert.equal((await handleScopedIssues(new Request(url+'&issueId=bad'),db,null)).status,400);
+  // Revoking the admitted issuer key must immediately revoke issue rights,
+  // even before the member's own attestation expires.
+  await pg.query('UPDATE federation_node_keys SET valid_until=$1 WHERE node_id=$2',
+   [now+1,'agora']);
+  assert.equal((await handleScopedIssues(post(details),db,'alice',now+2)).status,403);
+  const revokedBoard=await (await handleScopedIssues(new Request(url),db,'alice',now+2)).json();
+  assert.equal(revokedBoard.canParticipate,false);
+
  }finally{await pg.close();}
 });
