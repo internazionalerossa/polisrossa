@@ -29,6 +29,12 @@ test('one founder publishes alone; the second admitted PR2 atomically activates 
   const initial=await readEditorialHead(pool,'astronomia');
   assert.equal(initial.sequence,1);
   assert.equal(initial.digest,solo.digest);
+  await assert.rejects(
+   proposeEditorialRevision(pool,'astronomia','alice',{title:'Stale editor changes'},verify,null),
+   (error:unknown)=>error instanceof EditorialError&&error.status===409,
+  );
+  assert.equal((await readEditorialHead(pool,'astronomia')).sequence,1);
+
   assert.deepEqual(await joinEditorialPr2(pool,'astronomia','bob',verify),{mode:'collective',members:2});
   assert.deepEqual(await joinEditorialPr2(pool,'astronomia','bob',verify),{mode:'collective',members:2});
   const change=await proposeEditorialRevision(pool,'astronomia','alice',{title:'Astronomia',sections:['Biblioteca','Timeline']},verify);

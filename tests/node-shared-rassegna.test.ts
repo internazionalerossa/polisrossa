@@ -54,6 +54,8 @@ test('the common article grid preserves PolisRossa classes and never injects the
  const html=renderToStaticMarkup(createElement(NodeRassegna,{spaceId:'astronomia',articles:[article(source)]}));
  assert.match(html,/class="news-grid"/);
  assert.match(html,/class="article-card"/);
+ assert.match(html,/class="article-open"/);
+ assert.match(html,/Leggi e sostieni la fonte/);
  assert.match(html,/class="article-copy"/);
  assert.match(html,/class="article-meta"/);
  assert.match(html,/Una scoperta astronomica verificata/);
