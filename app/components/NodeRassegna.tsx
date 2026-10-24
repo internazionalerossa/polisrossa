@@ -72,20 +72,22 @@ export function NodeRassegna({spaceId,articles,emptyText='Nessun articolo dispon
    <div className="news-grid" aria-label="Articoli">{filtered.slice(0,visible).map(article=>{
     const href=safeHref(article.link),published=article.publishedAt&&Date.parse(article.publishedAt);
     return <article className="article-card" key={article.sourceId+'-'+article.id}>
-     <div className="article-image">
+     <a className="article-open" href={href??undefined} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">
+      <div className="article-image">
       {article.image&&safeHref(article.image)?<img src={safeHref(article.image)!} alt="" loading="lazy" decoding="async" referrerPolicy="no-referrer" width={640} height={360}/>:
        <span className="image-unavailable" aria-hidden="true"/>}
-     </div>
-     <div className="article-copy">
+      </div>
+      <div className="article-copy">
       <div className="article-meta"><span>{article.sourceName}</span>
        {published&&Number.isFinite(published)?<time dateTime={article.publishedAt!}>{new Intl.DateTimeFormat('it-IT',{dateStyle:'medium',timeStyle:'short'}).format(published)}</time>:null}
       </div>
-      <h3>{href?<a href={href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">{article.title}</a>:article.title}</h3>
+      <h3>{article.title}</h3>
       <p>{article.excerpt||'Questo feed non fornisce un estratto. Apri la fonte originale per leggere l’articolo.'}</p>
-     </div>
+      </div>
+     </a>
+     {href?<a className="publisher-link" href={href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Leggi e sostieni la fonte <ArrowUpRight size={14}/></a>:null}
      <div className="article-bottom"><span>Fonte: {article.country||'Paese non verificato'} · {article.language}</span>
       <div>
-       {href?<a className="publisher-link" href={href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Leggi dalla fonte <ArrowUpRight size={14}/></a>:null}
        {onToggleSave?<button type="button" className={`save-button ${savedIds?.has(article.id)?'is-saved':''}`}
         aria-label={savedIds?.has(article.id)?'Rimuovi dai salvati: '+article.title:'Salva articolo: '+article.title}
         aria-pressed={Boolean(savedIds?.has(article.id))} onClick={()=>onToggleSave(article)}>
