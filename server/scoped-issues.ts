@@ -1,4 +1,5 @@
 import type {PostgresDatabase} from './database';
+import {verifiedAgoraPr3} from './verified-pr2';
 
 /**
  * Account identity comes only from a verified server session.
@@ -17,14 +18,6 @@ const text=(v:unknown,min:number,max:number):v is string=>
  * No distinct appointment, hosting entitlement or platform ballot weight is created.
  * Membership must have entered this store through signed attestation validation.
  */
-async function agoraPr2(db:PostgresDatabase,userId:string,now:number):Promise<boolean>{
- const result=await db.pool.query(
-  "SELECT 1 FROM federation_pr2_attestations a JOIN federation_pr2_electors e ON e.owner_key=a.owner_key"+
-  " WHERE e.owner_key=$1 AND e.source_node_id='agora' AND a.source_node_id='agora'"+
-  " AND a.valid_from<=$2 AND a.valid_until>$2"+
-  " AND (a.proof_json::jsonb->>'state')='active' LIMIT 1",[userId,now]);
- return result.rows.length>0;
-}
 
 export async function handleScopedIssues(
  request:Request,db:PostgresDatabase,userId:string|null,now=Date.now(),
@@ -40,7 +33,7 @@ export async function handleScopedIssues(
   // Capability is derived from the server-side session and verified PR2 status,
   // never from client role selectors. The board remains readable to visitors.
   let canParticipate=false;
-  if(userId)try{canParticipate=await agoraPr2(db,userId,now);}catch{}
+  if(userId)try{canParticipate=await verifiedAgoraPr3(db.pool,userId,now);}catch{}
   try {
    if(rawId){
     const issue=await db.pool.query(
@@ -79,7 +72,7 @@ export async function handleScopedIssues(
   if(v.action==='create'){
    if(rawId!==null||!text(v.title,8,160)||!text(v.body,20,8000)||v.issueId!==undefined||v.choice!==undefined)
     return reply({error:'Invalid issue content'},400);
-   if(!await agoraPr2(db,userId,now))return reply({error:'Active, verified Agorà PR2 membership required (PR3 is its platform function)'},403);
+   if(!await verifiedAgoraPr3(db.pool,userId,now))return reply({error:'Active, verified Agorà PR2 membership required (PR3 is its platform function)'},403);
    const rows=await db.batch([db.prepare(
     "INSERT INTO agora_internal_issues(scope,author_id,title,body) SELECT ?,?,?,?"+
     " WHERE (SELECT COUNT(*) FROM agora_internal_issues WHERE author_id=? AND created_at>now()-interval '1 day')<10"+
@@ -92,7 +85,7 @@ export async function handleScopedIssues(
   if(!issue.rows[0])return reply({error:'Issue not found'},404);
   if(issue.rows[0].status!=='open')return reply({error:'Issue closed'},409);
   if(v.action==='comment'){
-   if(!await agoraPr2(db,userId,now))return reply({error:'Only verified Agorà PR2 members may comment on internal issues'},403);
+   if(!await verifiedAgoraPr3(db.pool,userId,now))return reply({error:'Only verified Agorà PR2 members may comment on internal issues'},403);
    if(!text(v.body,5,4000)||v.title!==undefined||v.choice!==undefined)return reply({error:'Invalid comment'},400);
    const inserted=await db.batch([db.prepare(
     "INSERT INTO agora_internal_issue_comments(issue_id,author_id,body) SELECT ?,?,?"+
@@ -103,7 +96,7 @@ export async function handleScopedIssues(
   }
   if(v.title!==undefined||v.body!==undefined||!['yes','no','abstain'].includes(String(v.choice)))
    return reply({error:'Invalid advisory vote'},400);
-  if(!await agoraPr2(db,userId,now))return reply({error:'Active, verified Agorà PR2 membership required (PR3 is its platform function)'},403);
+  if(!await verifiedAgoraPr3(db.pool,userId,now))return reply({error:'Active, verified Agorà PR2 membership required (PR3 is its platform function)'},403);
   await db.prepare("INSERT INTO agora_internal_issue_votes(issue_id,voter_id,choice) VALUES(?,?,?)"+
    " ON CONFLICT(issue_id,voter_id) DO UPDATE SET choice=excluded.choice,updated_at=now()")
    .bind(id,userId,v.choice).run();
