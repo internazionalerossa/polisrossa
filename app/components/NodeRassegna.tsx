@@ -3,6 +3,7 @@
 import {useMemo,useState} from 'react';
 import {ArrowDown,ArrowUpRight,Bookmark,BookmarkCheck,Search,X} from 'lucide-react';
 import type {ArticleRecord} from '../lib/feed';
+import {selectNodeRassegna} from '../lib/node-rassegna-selection';
 
 /**
  * Shared Rassegna presentation: the article-card, news-grid and filter controls
@@ -18,18 +19,18 @@ export function NodeRassegna({spaceId,articles,emptyText='Nessun articolo dispon
  const [query,setQuery]=useState('');
  const [source,setSource]=useState('all');
  const [sort,setSort]=useState<'recent'|'source'>('recent');
+ const [language,setLanguage]=useState('all');
+ const [country,setCountry]=useState('all');
+ const [period,setPeriod]=useState<'day'|'week'|'month'|'all'>('all');
  const [visible,setVisible]=useState(24);
  const sources=useMemo(()=>[...new Map(articles.map(article=>[article.sourceId,article.sourceName])).entries()]
   .sort((a,b)=>a[1].localeCompare(b[1],'it')),[articles]);
- const filtered=useMemo(()=>articles.filter(article=>
-  (source==='all'||article.sourceId===source)&&
-  (!query.trim()||[article.title,article.excerpt,article.sourceName].join(' ').toLocaleLowerCase('it')
-   .includes(query.trim().toLocaleLowerCase('it'))))
-  .sort((a,b)=>sort==='source'?a.sourceName.localeCompare(b.sourceName,'it')||
-   (Date.parse(b.publishedAt??'')||0)-(Date.parse(a.publishedAt??'')||0):
-   (Date.parse(b.publishedAt??'')||0)-(Date.parse(a.publishedAt??'')||0)),
- [articles,query,source,sort]);
- const reset=()=>{setQuery('');setSource('all');setSort('recent');setVisible(24);};
+ const languages=useMemo(()=>[...new Set(articles.map(x=>x.language).filter(Boolean))].sort(),[articles]);
+ const countries=useMemo(()=>[...new Set(articles.map(x=>x.country).filter(Boolean))].sort((a,b)=>a.localeCompare(b,'it')),[articles]);
+ const filtered=useMemo(()=>selectNodeRassegna(articles,{
+  query,source,language,country,period,sort,
+ }),[articles,query,source,language,country,period,sort]);
+ const reset=()=>{setQuery('');setSource('all');setLanguage('all');setCountry('all');setPeriod('all');setSort('recent');setVisible(24);};
  return <section className="node-rassegna" data-space-id={spaceId} aria-labelledby={'node-rassegna-title-'+spaceId}>
   <header className="news-heading"><p className="eyebrow">STAMPA · FONTI DEL NODO</p>
    <h2 id={'node-rassegna-title-'+spaceId}>{title}</h2></header>
@@ -41,6 +42,23 @@ export function NodeRassegna({spaceId,articles,emptyText='Nessun articolo dispon
     <select value={source} onChange={event=>{setSource(event.target.value);setVisible(24);}}>
      <option value="all">Tutte le fonti</option>
      {sources.map(([id,name])=><option key={id} value={id}>{name}</option>)}
+    </select></label>
+   <label>Lingua della fonte
+    <select value={language} onChange={event=>{setLanguage(event.target.value);setVisible(24);}}>
+     <option value="all">Tutte le lingue</option>
+     {languages.map(value=><option key={value} value={value}>{value}</option>)}
+    </select></label>
+   <label>Paese della testata
+    <select value={country} onChange={event=>{setCountry(event.target.value);setVisible(24);}}>
+     <option value="all">Tutti i paesi</option>
+     {countries.map(value=><option key={value} value={value}>{value}</option>)}
+    </select></label>
+   <label>Periodo di pubblicazione
+    <select value={period} onChange={event=>{setPeriod(event.target.value as 'day'|'week'|'month'|'all');setVisible(24);}}>
+     <option value="day">Ultime 24 ore</option>
+     <option value="week">Ultimi 7 giorni</option>
+     <option value="month">Ultimi 30 giorni</option>
+     <option value="all">Tutto il ricevuto</option>
     </select></label>
    <label>Ordine
     <select value={sort} onChange={event=>setSort(event.target.value as 'recent'|'source')}>
