@@ -14,6 +14,7 @@ import {liveChat} from './live-chat';
 import {purgeForumApplications,startForumApplicationRetention} from './forum-retention';
 import {purgeAuthenticationState,startAuthenticationRetention} from './auth-retention';
 import {api,privatePaths} from './api';
+import {verifiedNodePr2} from './verified-pr2';
 import {publicSpaceSeedResponse,publicSpaceDirectoryResponse} from './public-space-registry';
 import {publicSpaceFeedResponse} from './public-space-feed';
 import {databaseTarget,openSpaceDatabaseRegistry} from './space-databases';
@@ -51,20 +52,7 @@ for(const entry of editorialSpaceInputs){
 const editorialSpacePools=editorialSpaceInputs.length
  ? openSpaceDatabaseRegistry(editorialSpaceInputs,connectionString=>createPool(connectionString,2))
  : null;
-const verifyNodePr2=async(spaceId:string,userId:string)=>{
- const at=Date.now();
- const result=await pool.query(
-  `SELECT 1 FROM federation_pr2_attestations a
-   JOIN federation_pr2_electors e ON e.owner_key=a.owner_key
-   JOIN federation_node_keys k ON k.node_id=a.source_node_id AND k.key_id=a.issuer_key_id
-   WHERE e.owner_key=$1 AND e.source_node_id=$2 AND a.source_node_id=$2
-   AND (a.proof_json::jsonb->>'state')='active'
-   AND (a.proof_json::jsonb->>'nodeId')=$2
-   AND a.valid_from<=$3 AND a.valid_until>$3
-   AND k.valid_from<=$3 AND (k.valid_until IS NULL OR k.valid_until>$3)
-   LIMIT 1`,[userId,spaceId,at]);
- return result.rows.length>0;
-};
+const verifyNodePr2=(spaceId:string,userId:string)=>verifiedNodePr2(pool,spaceId,userId);
 
 const jobs=new Set<Promise<unknown>>();
 const background=(promise:Promise<unknown>)=>{const job=promise.catch(()=>{}).finally(()=>jobs.delete(job));jobs.add(job);};
