@@ -90,6 +90,7 @@ export async function joinEditorialPr2(
 }
 export async function proposeEditorialRevision(
  pool:Connections,spaceId:string,userId:string,content:unknown,verify:VerifyNodePr2,
+ expectedBaseDigest?:string|null,
 ):Promise<{id:string;digest:string;status:Decision;electorateSize:number}>{
  validateIdentity(spaceId,userId);await requireVerified(verify,spaceId,userId);
  const canonical=canonicalKnowledgeJson(content);
@@ -99,6 +100,8 @@ export async function proposeEditorialRevision(
  return transact(pool,async c=>{
   await requireMember(c,spaceId,userId);
   const head=await spaceHead(c,spaceId),electorate=await members(c,spaceId);
+  if(expectedBaseDigest!==undefined&&head.digest!==expectedBaseDigest)
+   throw new EditorialError(409,'The published node changed; reload the latest revision before proposing edits');
   const inserted=await c.query(
    'INSERT INTO node_editorial_proposals(space_id,author_id,base_digest,content_digest,content_json,electorate_size)'+
    ' VALUES($1,$2,$3,$4,$5::jsonb,$6) RETURNING id::text',
