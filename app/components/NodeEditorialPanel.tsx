@@ -63,7 +63,8 @@ export default function NodeEditorialPanel({seed}:{seed:PublicSpaceSeed}){
   finally{setBusy(false);}
  }
  async function propose(draft:NodeBlueprintDraft):Promise<string>{
-  const result=await action({action:'propose',draft});
+  if(!board?.initialized)throw Error('Lo stato editoriale non è stato inizializzato.');
+  const result=await action({action:'propose',draft,expectedBaseDigest:board.head?.digest??null});
   return result.status==='published'?'Revisione pubblicata: era presente un solo PR2 attivo.':
    'Proposta registrata per il voto dei PR2 di questo nodo. I contenuti pubblici non sono cambiati.';
  }
