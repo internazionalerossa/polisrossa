@@ -34,7 +34,7 @@ export async function handleNodeEditorial(
   try{
    const head=await readEditorialHead(pool,spaceId);
    const proposals=await pool.query(
-    "SELECT id::text,content_digest,content_json,electorate_size,status,created_at"+
+    "SELECT id::text,base_digest,content_digest,content_json,electorate_size,status,created_at"+
     " FROM node_editorial_proposals WHERE space_id=$1 AND status='pending' ORDER BY created_at DESC LIMIT 30",[spaceId]);
    const count=await pool.query('SELECT COUNT(*)::int AS count FROM node_editorial_pr2 WHERE space_id=$1',[spaceId]);
    return reply({spaceId,initialized:true,mode:Number(count.rows[0].count)<2?'solo':'collective',

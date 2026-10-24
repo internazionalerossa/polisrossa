@@ -1,18 +1,22 @@
 "use client";
 import {useEffect,useState} from 'react';
 import NodeStudio from './NodeStudio';
-import type {NodeBlueprintDraft} from '../lib/node-studio-model';
+import type {NodeBlueprintDraft,NodeStudioBlock} from '../lib/node-studio-model';
+import {reviewEditorialChanges} from '../lib/node-editorial-review';
 import type {PublicSpaceSeed} from '../platform/public-space-seed';
 
 type Published={digest:string|null;sequence:number;content:unknown};
-type Proposal={id:string;content_digest:string;content_json:unknown;electorate_size:number;status:string;created_at:string};
+type Proposal={id:string;base_digest:string|null;content_digest:string;content_json:unknown;electorate_size:number;status:string;created_at:string};
 type Board={spaceId:string;initialized:boolean;mode:string;members:number;head:Published|null;proposals:Proposal[]};
 const endpoint=(id:string)=>'/api/node-editorial?'+new URLSearchParams({spaceId:id});
 
-function ProposedContent({content}:{content:unknown}){
+function ProposedContent({content,baseline}:{content:unknown;baseline:unknown}){
  const value=content&&typeof content==='object'&&!Array.isArray(content)?content as Record<string,unknown>:{};
  const sources=Array.isArray(value.sources)?value.sources:[];
  const blocks=Array.isArray(value.blocks)?value.blocks:[];
+ const original=baseline&&typeof baseline==='object'&&!Array.isArray(baseline)?baseline as Record<string,unknown>:{};
+ const oldBlocks=Array.isArray(original.blocks)?original.blocks:[];
+ const changes=reviewEditorialChanges(oldBlocks as NodeStudioBlock[],blocks as NodeStudioBlock[]);
  return <div className="node-studio-preview-block">
   <h4>{typeof value.name==='string'?value.name:'Revisione del nodo'}</h4>
   {typeof value.topic==='string'?<p><strong>Tema:</strong> {value.topic}</p>:null}
@@ -23,6 +27,20 @@ function ProposedContent({content}:{content:unknown}){
    return <li key={i}>{String(record.name??'Fonte')} · {String(record.homepage??'')}</li>;
   })}</ul>
   <p><strong>Voci, libri, Timeline e dati:</strong> {blocks.length}</p>
+  <h5>Modifiche puntuali proposte</h5>
+  {changes.length===0?<p>Nessun blocco modificato rispetto alla base.</p>:<ol>
+   {changes.map(change=><li key={change.id}>
+    <strong>{change.kind==='added'?'Nuova voce':change.kind==='removed'?'Voce rimossa':'Voce modificata'}: {change.next?.title??change.previous?.title}</strong>
+    {change.previous&&change.next?<div>
+     {change.previous.title!==change.next.title?<p>Titolo precedente: {change.previous.title}</p>:null}
+     {change.previous.body!==change.next.body?<details>
+      <summary>Confronta il testo precedente e il nuovo</summary>
+      <p><strong>Prima:</strong> {change.previous.body}</p>
+      <p><strong>Dopo:</strong> {change.next.body}</p>
+     </details>:null}
+    </div>:null}
+   </li>)}
+  </ol>}
   <ol>{blocks.slice(0,80).map((block,i)=>{
    const record=block&&typeof block==='object'?block as Record<string,unknown>:{};
    return <li key={i}><strong>{String(record.title??'Voce')}</strong>
@@ -92,7 +110,10 @@ export default function NodeEditorialPanel({seed}:{seed:PublicSpaceSeed}){
     {board.proposals.map(proposal=><article key={proposal.id} className="agora-forum-role">
      <p><strong>Digest della proposta:</strong> <code>{proposal.content_digest}</code></p>
      <p>Corpo elettorale congelato: {proposal.electorate_size} PR2.</p>
-     <ProposedContent content={proposal.content_json}/>
+     {proposal.base_digest===(board.head?.digest??null)?
+       <ProposedContent content={proposal.content_json} baseline={board.head?.content??seed}/>:
+       <><p role="status">Questa proposta si riferisce a una revisione precedente: il confronto puntuale non può essere calcolato sulla versione attualmente pubblicata.</p>
+        <ProposedContent content={proposal.content_json} baseline={proposal.content_json}/></>}
      <div className="node-studio-actions">
       <button type="button" disabled={busy} onClick={()=>void action({action:'vote',proposalId:proposal.id,choice:'yes'})
        .then(data=>setNotice(data.status==='published'?'Revisione approvata e pubblicata.':'Voto favorevole registrato.')).catch(()=>{})}>Approva questa revisione</button>
